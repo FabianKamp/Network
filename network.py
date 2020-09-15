@@ -23,7 +23,7 @@ class network:
 
         if isinstance(Adjacency_Matrix, np.ndarray) and node_names is not None:
             if not isinstance(node_names, list): raise ValueError('node_names must be list.')
-            if len(node_names) != b.shape[0]: raise Exception('Length of node_names must the same as number of rows / columns in adjacency matrix')
+            if len(node_names) != Adjacency_Matrix.shape[0]: raise Exception('Length of node_names must the same as number of rows / columns in adjacency matrix')
 
             self.adj_mat = pd.DataFrame(Adjacency_Matrix, columns = node_names, index = node_names)
         else:
@@ -309,7 +309,7 @@ class network:
                 tc: timecourse as np.ndarray, must  be set for hqs algorithm
         :return: np.float, small-worldness sigma
         """
-        import NetworkFunctions.random_reference as randomnet
+        import random_reference as randomnet
         if method not in ['rewired_net', 'hqs', 'weighted_random']:
             raise Exception('Method must be rewired_net, rewired_nx or hqs')
 
@@ -409,11 +409,25 @@ class network:
 
         return assortativity
 
-    def MST(self):
+    def MST(self, invert=True):
+        """
+        Calculate the minimum spannning tree of network, inverts the edges by default
+        Returns: minimum spanning tree of the network
+        """
         from from_networkx import convert_to_nx, convert_to_net
-        graph = convert_to_nx(self.adj_mat)
+        adj_mat = np.copy(self.adj_mat)
+        # Inverting Non-zero values
+        if invert:
+            inv_edges = 1 / adj_mat[adj_mat != 0]
+            adj_mat[adj_mat!=0] = inv_edges
+        # Use networkx to calculate the mst
+        graph = convert_to_nx(adj_mat)
         mst = nx.minimum_spanning_tree(graph, weight='weight')
         mst = convert_to_net(mst)
+        # Re-inverting the mst
+        if invert:
+            inv_edges = 1 / mst[mst != 0]
+            mst[mst!=0] = inv_edges
         return mst
 
 
