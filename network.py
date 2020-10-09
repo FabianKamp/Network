@@ -4,6 +4,7 @@ import networkx as nx
 from itertools import combinations
 import corr_functions as corr
 import from_networkx as fnx
+import net_algorithms as alg
 
 class NetworkError(Exception):
     """
@@ -15,38 +16,33 @@ class network:
     :parameter pd.DataFrame that contains the adjacency matrix of the network, np.ndarray timecourse matrix
     TODO correct clust coeff
     """
-    def __init__(self, Adjacency_Matrix, node_names=None,tc=[]):
+    def __init__(self, Adjacency_Matrix):
         if not isinstance(Adjacency_Matrix, (pd.DataFrame, np.ndarray)):
             raise ValueError('Input must be numpy.ndarray or panda.DataFrame.')
-        if len(Adjacency_Matrix.shape) != 2 or Adjacency_Matrix.shape[0] != Adjacency_Matrix.shape[1]:  # Check if the Adjancency Matrix has the right shape
-            raise Exception('Adjacency matrix must be a 2 dimensional square matrix.')
+        if len(Adjacency_Matrix.shape) != 2 or Adjacency_Matrix.shape[0] != Adjacency_Matrix.shape[1] or Adjacency_Matrix.shape[0] < 4:
+            raise NetworkError('Adjacency matrix must be a 2 dimensional square matrix with more than 4 nodes.')
 
-        if isinstance(Adjacency_Matrix, np.ndarray) and node_names is not None:
-            if not isinstance(node_names, list): raise ValueError('node_names must be list.')
-            if len(node_names) != Adjacency_Matrix.shape[0]: raise Exception('Length of node_names must the same as number of rows / columns in adjacency matrix')
-
-            self.adj_mat = pd.DataFrame(Adjacency_Matrix, columns = node_names, index = node_names)
-        else:
-            self.adj_mat = pd.DataFrame(Adjacency_Matrix)
-
+        self.adj_mat = pd.DataFrame(Adjacency_Matrix)
         self.nodes = list(self.adj_mat.index)
         self.number_nodes = len(self.nodes)
-        if self.number_nodes < 4:
-            raise NetworkError('Network must have at 4 or more nodes.')
-
-        self.shortest_path = None
-        self.shortest_path_length = None
-        self.triangles = None
-
-        if tc:
-            assert isinstance(tc, np.ndarray), "Timecourse must be np.ndarray"
-            self.time_course=pd.DataFrame(tc, index=self.nodes)
-            self.cov_mat=corr.covariance_mat(tc)
-        else:
-            self.time_course=None
 
     def __getitem__(self, index):
-        return self.adj_mat[index]
+        return self.adj_mat.iloc[index]
+
+    def invert_edges(self):
+        """
+        Edge inversion function --> 1/edge, edge != 0
+        :return: adjacency matrix with inversed edges
+        """
+        adj_mat=np.asarray(self.adj_mat)
+        # Inverting Non-zero values
+        inv_edges = np.copy(1 / adj_mat[adj_mat != 0])
+        adj_mat[adj_mat!=0] = inv_edges
+        return adj_mat
+
+    def binarize_net(self, threshold):
+        pass
+
 
     def degree(self):
         """
@@ -58,7 +54,7 @@ class network:
 
         return degree
 
-    def shortestpath(self, paths=False, nx=True, normalize=False):
+    def short_path_lengths(self, nx=True, normalize=False):
         """
         Calculate the shortest path between all nodes in the network using Dijstrak Algorithm:
         https://en.wikipedia.org/wiki/Dijkstra%27s_algorithm. If nx is set to true uses the networkX implementation.
@@ -67,19 +63,11 @@ class network:
                 path boolean value, specify if the paths are returned
         :return Dictionary of two nxn dimensional pd.DataFrames with shortest path / shortest distance between all pairs of nodes in the network
         """
-        adj_mat = self.adj_mat.copy()
+        adj_mat = np.asarray(self.adj_mat)
 
         if not np.all(adj_mat>=0):          # Check for negative values
             print('Shortest Path: Compute absolute value for shortest path length.')
             adj_mat = np.abs(adj_mat)       # Take absolute value of adjacency matrix
-
-        if paths and nx:
-            raise NetworkError('Paths has not yet been implemented using networkX. Swith nx or paths to False')
-
-        if paths and self.shortest_path is not None:                    # Returns shortest paths if already existing
-            return self.shortest_path
-        elif not paths and self.shortest_path_length is not None:       # Returns shortest path lengths if already existing
-            return self.shortest_path_length
 
         # Normalize the edge weights with the maximum
         if normalize:
@@ -92,54 +80,14 @@ class network:
 
         # NetworkX implementation of the shortest path length
         if nx:
-            if self.shortest_path_length is not None:
-                print('Shortest path length has already been computed.')
-                return self.shortest_path_length
-
             shortestpath_matrix = fnx.shortest_path_length(adj_mat)
             shortestdist_df = pd.DataFrame(np.asarray(shortestpath_matrix), columns=self.nodes, index=self.nodes)
             self.shortest_path_length = shortestdist_df
-            return shortestdist_df
 
         # Manual implementation of Dijstrak Algorithm
         else:
-            shortestdist_df = pd.DataFrame(np.zeros(adj_mat.shape), columns=self.nodes, index=self.nodes)  # Initialize Path matrix and distance matrix
-            shortestpath_df = pd.DataFrame(np.empty(adj_mat.shape, dtype=str), columns=self.nodes, index=self.nodes)
 
-            for n in range(self.number_nodes):
-                node_set=pd.DataFrame({'Distance': np.full((self.number_nodes), np.inf),
-                                       'Previous': ['']*(self.number_nodes), 'Path': ['']*(self.number_nodes)}, index=self.nodes)
-                node_set.loc[self.nodes[n], 'Distance'] = 0
-                unvisited_nodes=self.nodes.copy()
-
-                while unvisited_nodes != []:
-                    current=node_set.loc[unvisited_nodes,'Distance'].idxmin()    # Select node with minimal Distance of the unvisited nodes
-                    unvisited_nodes.remove(current)
-                    for k in self.nodes:
-                        dist=node_set.loc[current, 'Distance'] + adj_mat.loc[current, k]
-                        if node_set.loc[k,'Distance'] > dist:
-                            node_set.loc[k,'Distance'] = dist
-                            node_set.loc[k,'Previous'] = current
-                shortestdist_df.loc[:, n]=node_set.loc[:,'Distance']
-                shortestdist_df.loc[n, :]=node_set.loc[:,'Distance']
-
-                if paths:                     # Create Dataframe with string values for the shortest path between each pair of nodes
-                    for k in self.nodes:
-                        path=str(k)
-                        current=k
-                        while node_set.loc[current, 'Previous'] != '':
-                            current=node_set.loc[current, 'Previous']
-                            path=str(current)+','+path
-                        node_set.loc[k,'Path'] = path
-                    shortestpath_df.loc[:,n]=node_set.loc[:,'Path']
-                    shortestpath_df.loc[n,:]=node_set.loc[:,'Path']
-            self.shortest_path_length = shortestdist_df
-            self.shortest_path = shortestpath_df
-
-            if paths:
-                return shortestpath_df
-            else:
-                return shortestdist_df
+            return shortestdist_df
 
     def num_triangles(self, normalize=False):
         """
@@ -416,6 +364,7 @@ class network:
         """
         from from_networkx import convert_to_nx, convert_to_net
         adj_mat = np.copy(self.adj_mat)
+        adj_mat += 1
         # Inverting Non-zero values
         if invert:
             inv_edges = 1 / adj_mat[adj_mat != 0]
@@ -426,7 +375,7 @@ class network:
         mst = convert_to_net(mst)
         # Re-inverting the mst
         if invert:
-            inv_edges = 1 / mst[mst != 0]
+            inv_edges = 1 / mst[mst != 0] - 1
             mst[mst!=0] = inv_edges
         return mst
 
