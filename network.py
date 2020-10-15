@@ -10,20 +10,24 @@ class NetworkError(Exception):
     """
     Exception Error to report for Network Errors
     """
+    def __init__(self, ErrorMessage):
+        print(ErrorMessage)
 
 class network:
     """Defines input as network
     :parameter pd.DataFrame that contains the adjacency matrix of the network, np.ndarray timecourse matrix
     TODO correct clust coeff
     """
-    def __init__(self, Adjacency_Matrix):
-        if not isinstance(Adjacency_Matrix, (pd.DataFrame, np.ndarray)):
-            raise ValueError('Input must be numpy.ndarray or panda.DataFrame.')
+    def __init__(self, Adjacency_Matrix, Node_Names):
+        if not isinstance(Adjacency_Matrix, np.ndarray):
+            raise NetworkError('Input must be numpy.ndarray.')
         if len(Adjacency_Matrix.shape) != 2 or Adjacency_Matrix.shape[0] != Adjacency_Matrix.shape[1] or Adjacency_Matrix.shape[0] < 4:
             raise NetworkError('Adjacency matrix must be a 2 dimensional square matrix with more than 4 nodes.')
+        if len(Node_Names) != Adjacency_Matrix.shape[0]:
+            raise NetworkError('Adjacency')
 
         self.adj_mat = pd.DataFrame(Adjacency_Matrix)
-        self.nodes = list(self.adj_mat.index)
+        self.nodes = Node_Names
         self.number_nodes = len(self.nodes)
 
     def __getitem__(self, index):
@@ -34,7 +38,7 @@ class network:
         Edge inversion function --> 1/edge, edge != 0
         :return: adjacency matrix with inversed edges
         """
-        adj_mat=np.asarray(self.adj_mat)
+        adj_mat = self.adj_mat
         # Inverting Non-zero values
         inv_edges = np.copy(1 / adj_mat[adj_mat != 0])
         adj_mat[adj_mat!=0] = inv_edges
