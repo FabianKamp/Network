@@ -156,7 +156,7 @@ class network:
         :return: np.float
         """
         sum_triangles = np.sum(self.num_triangles()*2)     # Multiply sum of triangles with 2 and sum the array
-        degrees = self.degrees()
+        degrees = self.degrees(avg=False)
         degrees *= (degrees-1)
         sum_degrees = np.sum(degrees)
         transitivity = sum_triangles / sum_degrees
@@ -197,7 +197,7 @@ class network:
         :return: pd.Series, average neighbour degree of each node
         """
         adj = self.adj_mat
-        degrees = self.degrees()
+        degrees = self.degrees(avg=False)
         avg_neigh_degree = np.zeros(self.number_nodes)
         for n in range(self.number_nodes):
             avg_neigh_degree[n] = np.sum(adj[n, :] * degrees) / degrees[n]
@@ -223,7 +223,7 @@ class network:
         """
         adj = self.adj_mat.copy()
         total_weights = 1/np.sum(adj)   
-        degrees = self.degrees()        
+        degrees = self.degrees(avg=False)        
         add_mat = np.zeros(adj.shape)   
         mult_mat = np.zeros(adj.shape)
         square_mat = np.zeros(adj.shape)
