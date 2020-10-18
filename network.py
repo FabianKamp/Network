@@ -40,8 +40,19 @@ class network:
         adj_mat[adj_mat!=0] = inv_edges
         return adj_mat
 
-    def binarize_net(self, threshold):
-        pass
+    def binarize(self, threshold):
+        self.adj_mat[self.adj_mat<threshold] = 0 
+        self.adj_mat[self.adj_mat>=threshold] = 1
+        return self.adj_mat
+    
+    def split(self):
+        pos = self.adj_mat.copy()
+        pos[pos<=0]=0
+        
+        neg = self.adj_mat.copy()
+        neg[neg<=0]=0
+
+        return pos, neg
 
 
     def degree(self):
