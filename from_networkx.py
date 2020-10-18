@@ -47,7 +47,7 @@ def between_centrality(adjacency):
     adjacency = np.asarray(adjacency)
     N = adjacency.shape[0]
     G = nx.from_numpy_array(adjacency)
-    betw_cent_dict = nx.betweenness_centrality(G, k=None, normalized=True, weight='weight')
+    betw_cent_dict = nx.betweenness_centrality(G, k=None, normalized=False, weight='weight')
     betw_cent = np.array([betw_cent_dict[i] for i in range(N)])
     return betw_cent
 

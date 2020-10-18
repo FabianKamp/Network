@@ -60,7 +60,7 @@ class network:
     def binarize_net(self, threshold):
         pass
 
-    def degrees(self, avg=False):
+    def degrees(self, avg=True):
         """
         Calculate the degree of each node in the network.
         :return n dimensional array with degrees of all nodes in the network
@@ -162,7 +162,7 @@ class network:
         transitivity = sum_triangles / sum_degrees
         return transitivity
 
-    def closeness_centrality(self, avg=False):
+    def closeness_centrality(self, avg=True):
         """
         Calculate the closeness centrality of each node in network.
         Optionally takes in the shortest average path length of each node, which saves computation time.
@@ -179,7 +179,7 @@ class network:
         else: 
             return close_centr
 
-    def betweenness_centrality(self, avg=False):
+    def betweenness_centrality(self, avg=True):
         """
         Calculate the betweenness centrality of each node in network
         :return: ndimensional pd.Series
@@ -250,5 +250,5 @@ class network:
         mst = fnx.MST(inv_adj_mat)
         # Re-inverting the mst
         mst = self.invert_edges(adj=mst)
-        self.adj_mat = mst
+        self.adj_mat = mst.copy()
         return mst
