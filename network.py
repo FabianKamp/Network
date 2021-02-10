@@ -5,6 +5,8 @@ from itertools import combinations
 import corr_functions as corr
 import from_networkx as fnx
 import net_algorithms as alg
+import warnings
+
 
 class NetworkError(Exception):
     """
@@ -26,14 +28,21 @@ class network:
         if len(Node_Names) != Adjacency_Matrix.shape[0]:
             raise NetworkError('Adjacency')       
         if np.any(Adjacency_Matrix<0) or np.any(Adjacency_Matrix.T-Adjacency_Matrix) or np.any(np.diag(Adjacency_Matrix)!=0):
-            raise NetworkError('Adjacency matrix must be symmetric and all edges must be positive. Diagonal must be 0.')        
+            warnings.warn('Warning...........Adjacency matrix should be symmetric, all edges be positive and diagonal set to 0.')        
 
         self.adj_mat = np.asarray(Adjacency_Matrix)
         self.nodes = Node_Names
         self.number_nodes = len(self.nodes)
 
     def __getitem__(self, index):
-        return self.adj_mat.iloc[index]
+        """
+        Indexing by node name and by row/col number
+        """
+        if index[0] in self.nodes and index[1] in self.nodes:
+            i, j = self.nodes.index(index[0]), self.nodes.index(index[1])
+        else:
+            i, j = index[0], index[1]            
+        return self.adj_mat[i,j]
 
     def invert_edges(self, adj=None):
         """
@@ -52,13 +61,18 @@ class network:
         return adj_mat
     
     def normalize_net(self):
-        adj_mat = self.adj_mat
-        max_weight = np.max(adj_mat)
-        adj_mat /= max_weight
-        return adj_mat
+        max_weight = np.max(self.adj_mat)
+        self.adj_mat /= max_weight
+        return self.adj_mat
 
     def binarize_net(self, threshold):
-        pass
+        """
+        Binarizes the network using threshold.
+        :param absolut threshold between 0-1
+        """
+        self.adj_mat[self.adj_mat<threshold] = 0 
+        self.adj_mat[self.adj_mat>=threshold] = 1
+        return self.adj_mat
 
     def degrees(self, avg=True):
         """
